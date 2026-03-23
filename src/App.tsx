@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Papa from 'papaparse';
-import { ExternalLink, BookOpen, AlertCircle, UploadCloud, Send, Menu, X, CheckCircle2, Bug, Image, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
+import { ExternalLink, BookOpen, AlertCircle, UploadCloud, Send, Menu, X, CheckCircle2, Bug, Image, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ImageOff, Maximize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Tool {
@@ -469,6 +469,10 @@ function FixerDashboard({ feedbacks, setFeedbacks, loading }: {
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
+  
+  // Expanded Comment State
+  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
+  const [expandedCommentText, setExpandedCommentText] = useState<string>('');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -659,17 +663,29 @@ function FixerDashboard({ feedbacks, setFeedbacks, loading }: {
                   </p>
                 </td>
                 <td className="p-4 min-w-[250px]">
-                  <textarea
-                    className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none disabled:opacity-50"
-                    placeholder="Type your response to the user..."
-                    value={row.comments}
-                    rows={2}
-                    onChange={(e) => {
-                      setFeedbacks(prev => prev.map(f => f.id === row.id ? { ...f, comments: e.target.value } : f));
-                    }}
-                    onBlur={(e) => handleUpdate(row.id, 'comments', e.target.value)}
-                    disabled={savingId === row.id}
-                  />
+                  <div className="relative group">
+                    <textarea
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2.5 pr-8 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none disabled:opacity-50"
+                      placeholder="Type your response to the user..."
+                      value={row.comments}
+                      rows={2}
+                      onChange={(e) => {
+                        setFeedbacks(prev => prev.map(f => f.id === row.id ? { ...f, comments: e.target.value } : f));
+                      }}
+                      onBlur={(e) => handleUpdate(row.id, 'comments', e.target.value)}
+                      disabled={savingId === row.id}
+                    />
+                    <button
+                      onClick={() => {
+                        setExpandedCommentId(row.id);
+                        setExpandedCommentText(row.comments);
+                      }}
+                      title="Expand comment box"
+                      className="absolute top-2 right-2 text-slate-400 hover:text-blue-600 bg-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -772,6 +788,78 @@ function FixerDashboard({ feedbacks, setFeedbacks, loading }: {
                 {lightboxIndex + 1} / {lightboxImages.length}
               </div>
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {expandedCommentId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div>
+                  <h3 className="text-xl font-bold font-display text-slate-900">Response / Comments</h3>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Expand this area to write a detailed response to the user's feedback.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setExpandedCommentId(null)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 flex-grow flex flex-col">
+                <textarea
+                  className="w-full flex-grow bg-white border border-slate-200 rounded-xl p-4 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none min-h-[300px]"
+                  placeholder="Type your detailed response to the user here..."
+                  value={expandedCommentText}
+                  onChange={(e) => setExpandedCommentText(e.target.value)}
+                  autoFocus
+                />
+              </div>
+
+              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                <button
+                  onClick={() => setExpandedCommentId(null)}
+                  className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-200 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    handleUpdate(expandedCommentId, 'comments', expandedCommentText);
+                    setFeedbacks(prev => prev.map(f => f.id === expandedCommentId ? { ...f, comments: expandedCommentText } : f));
+                    setExpandedCommentId(null);
+                  }}
+                  disabled={savingId === expandedCommentId}
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl shadow-sm transition-all disabled:opacity-70 flex items-center gap-2"
+                >
+                  {savingId === expandedCommentId ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    <>Save Response</>
+                  )}
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
